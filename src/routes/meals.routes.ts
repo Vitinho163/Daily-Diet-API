@@ -34,4 +34,43 @@ export async function mealsRoutes(app: FastifyInstance) {
       return reply.status(201).send()
     },
   )
+
+  app.get(
+    '/',
+    {
+      preHandler: [checkSessionIdExists],
+    },
+    async (request) => {
+      const meals = await knex('meals')
+        .where('user_id', request.user?.id)
+        .select()
+
+      return { meals }
+    },
+  )
+
+  app.get(
+    '/:id',
+    {
+      preHandler: [checkSessionIdExists],
+    },
+    async (request) => {
+      const getMealParamsSchema = z.object({
+        id: z.string().uuid(),
+      })
+
+      const { id } = getMealParamsSchema.parse(request.params)
+
+      const meal = await knex('meals')
+        .where('id', id)
+        .andWhere('user_id', request.user?.id)
+        .first()
+
+      if (!meal) {
+        return { error: 'Meal not found.' }
+      }
+
+      return { meal }
+    },
+  )
 }
