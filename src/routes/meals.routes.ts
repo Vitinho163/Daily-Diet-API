@@ -14,7 +14,17 @@ export async function mealsRoutes(app: FastifyInstance) {
       const createMealBodySchema = z.object({
         name: z.string(),
         description: z.string(),
-        date: z.coerce.date(),
+        date: z.preprocess((arg) => {
+          if (typeof arg === 'string') {
+            // Matches DD/MM/YYYY
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(arg)) {
+              const [day, month, year] = arg.split('/')
+              // Returns in YYYY-MM-DD format for `new Date()`
+              return `${year}-${month}-${day}`
+            }
+          }
+          return arg
+        }, z.coerce.date()),
         isOnDiet: z.boolean(),
       })
 
@@ -71,6 +81,62 @@ export async function mealsRoutes(app: FastifyInstance) {
       }
 
       return { meal }
+    },
+  )
+
+  app.put(
+    '/:id',
+    {
+      preHandler: [checkSessionIdExists],
+    },
+    async (request, reply) => {
+      const getMealParamsSchema = z.object({
+        id: z.string().uuid(),
+      })
+
+      const updateMealBodySchema = z.object({
+        name: z.string().optional(),
+        description: z.string().optional(),
+        date: z
+          .preprocess((arg) => {
+            if (typeof arg === 'string') {
+              if (/^\d{2}\/\d{2}\/\d{4}$/.test(arg)) {
+                const [day, month, year] = arg.split('/')
+                return `${year}-${month}-${day}`
+              }
+            }
+            return arg
+          }, z.coerce.date())
+          .optional(),
+        isOnDiet: z.boolean().optional(),
+      })
+
+      const { id } = getMealParamsSchema.parse(request.params)
+
+      const { name, description, date, isOnDiet } = updateMealBodySchema.parse(
+        request.body,
+      )
+
+      const meal = await knex('meals')
+        .where('id', id)
+        .andWhere('user_id', request.user?.id)
+        .first()
+
+      if (!meal) {
+        return { error: 'Meal not found.' }
+      }
+
+      await knex('meals')
+        .where('id', id)
+        .update({
+          name: name !== undefined ? name : meal.name,
+          description:
+            description !== undefined ? description : meal.description,
+          date: date ? date.getTime() : meal.date,
+          is_on_diet: isOnDiet !== undefined ? isOnDiet : meal.is_on_diet,
+        })
+
+      return reply.status(204).send()
     },
   )
 }
