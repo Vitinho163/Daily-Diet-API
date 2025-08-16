@@ -36,7 +36,7 @@ export async function mealsRoutes(app: FastifyInstance) {
         id: randomUUID(),
         name,
         description,
-        date: date.getTime(),
+        date,
         is_on_diet: isOnDiet,
         user_id: request.user?.id,
       })
@@ -181,7 +181,7 @@ export async function mealsRoutes(app: FastifyInstance) {
           name: name !== undefined ? name : meal.name,
           description:
             description !== undefined ? description : meal.description,
-          date: date ? date.getTime() : meal.date,
+          date: date ?? meal.date,
           is_on_diet: isOnDiet !== undefined ? isOnDiet : meal.is_on_diet,
         })
 
