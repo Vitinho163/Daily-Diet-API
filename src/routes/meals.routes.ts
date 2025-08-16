@@ -84,6 +84,54 @@ export async function mealsRoutes(app: FastifyInstance) {
     },
   )
 
+  app.get(
+    '/summary',
+    {
+      preHandler: [checkSessionIdExists],
+    },
+    async (request) => {
+      const userId = request.user?.id
+
+      const meals = await knex('meals')
+        .where('user_id', userId)
+        .orderBy('date', 'asc')
+
+      const summary = meals.reduce(
+        (acc, meal) => {
+          if (meal.is_on_diet) {
+            acc.onDietMeals++
+            acc.currentSequence++
+          } else {
+            acc.offDietMeals++
+            acc.bestSequence = Math.max(acc.bestSequence, acc.currentSequence)
+            acc.currentSequence = 0
+          }
+          return acc
+        },
+        {
+          onDietMeals: 0,
+          offDietMeals: 0,
+          bestSequence: 0,
+          currentSequence: 0,
+        },
+      )
+
+      const bestSequence = Math.max(
+        summary.bestSequence,
+        summary.currentSequence,
+      )
+
+      return {
+        summary: {
+          totalMeals: meals.length,
+          onDietMeals: summary.onDietMeals,
+          offDietMeals: summary.offDietMeals,
+          bestSequence,
+        },
+      }
+    },
+  )
+
   app.put(
     '/:id',
     {
