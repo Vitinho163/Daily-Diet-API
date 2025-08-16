@@ -53,6 +53,7 @@ export async function mealsRoutes(app: FastifyInstance) {
     async (request) => {
       const meals = await knex('meals')
         .where('user_id', request.user?.id)
+        .orderBy('date', 'desc')
         .select()
 
       return { meals }
